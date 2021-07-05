@@ -33,10 +33,13 @@ func main() {
 	var resObject GoalData
 	json.Unmarshal(resData, &resObject)
 
+	fmt.Println("----------------------------------------------------------")
 	fmt.Printf("%24s %10s %10s %10s\n", "GOAL NAME", "BALANCE", "DEPOSITED", "PROFIT")
+	fmt.Println("----------------------------------------------------------")
 	fmt.Printf("%24s %10.f %10.f %10.f\n", resObject.Metadata[0].Attribute.Name, resObject.Metadata[0].Attribute.Amount, resObject.Metadata[0].Attribute.Deposited, resObject.Metadata[0].Attribute.Profit)
 	fmt.Printf("%24s %10.f %10.f %10.f\n", resObject.Metadata[1].Attribute.Name, resObject.Metadata[1].Attribute.Amount, resObject.Metadata[1].Attribute.Deposited, resObject.Metadata[1].Attribute.Profit)
-	fmt.Printf("%24s %10s %10s %10.f\n", "TOTAL PROFIT", "", "", resObject.Metadata[0].Attribute.Profit+resObject.Metadata[1].Attribute.Profit)
+	fmt.Printf("%24s %10.f %10.f %10.f\n", "TOTAL PROFIT", resObject.Metadata[0].Attribute.Amount+resObject.Metadata[1].Attribute.Amount, resObject.Metadata[0].Attribute.Deposited+resObject.Metadata[1].Attribute.Deposited, resObject.Metadata[0].Attribute.Profit+resObject.Metadata[1].Attribute.Profit)
+	fmt.Println("----------------------------------------------------------")
 }
 
 func GetReq(url string) (*http.Response, []byte) {
