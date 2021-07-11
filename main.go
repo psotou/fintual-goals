@@ -25,13 +25,18 @@ type Attrb struct {
 }
 
 func main() {
-	requestUrl := fmt.Sprintf("https://fintual.cl/api/goals?user_email=pascualsu%sgmail.com&user_token=%s", "%40", os.Getenv("FINTUAL_TOKEN"))
+	var (
+		requestUrl string = fmt.Sprintf("https://fintual.cl/api/goals?user_email=pascualsu%sgmail.com&user_token=%s", "%40", os.Getenv("FINTUAL_TOKEN"))
+		resObject  GoalData
+	)
 
-	req, resData := GetReq(requestUrl)
-	defer req.Body.Close()
+	res, resData := GetReq(requestUrl)
+	defer res.Body.Close()
 
-	var resObject GoalData
-	json.Unmarshal(resData, &resObject)
+	err := json.Unmarshal(resData, &resObject)
+	if err != nil {
+		log.Fatal("Couldn't unmarshal json", err.Error())
+	}
 
 	fmt.Println("----------------------------------------------------------")
 	fmt.Printf("%24s %10s %10s %10s\n", "GOAL NAME", "BALANCE", "DEPOSITED", "PROFIT")
@@ -43,15 +48,15 @@ func main() {
 }
 
 func GetReq(url string) (*http.Response, []byte) {
-	req, err := http.Get(url)
+	res, err := http.Get(url)
 	if err != nil {
 		log.Fatal("Error en la conexión", err.Error())
 	}
 
-	req.Header.Add("Accept", "application/json")
-	resData, err := io.ReadAll(req.Body)
+	res.Header.Set("Accept", "application/json")
+	resData, err := io.ReadAll(res.Body)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(err.Error())
 	}
-	return req, resData
+	return res, resData
 }
