@@ -2,61 +2,68 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
+	"time"
+
+	"github.com/joho/godotenv"
+	"golang.org/x/text/language"
+	"golang.org/x/text/message"
 )
 
-type GoalData struct {
-	Metadata []Data `json:"data"`
-}
+const (
+	baseURL = "https://fintual.cl/api/goals"
+)
+const (
+	hoursPerDay  = 24
+	daysPerMonth = 30
+)
 
-type Data struct {
-	Attribute Attrb `json:"attributes"`
-}
-
-type Attrb struct {
-	Name      string  `json:"name"`
-	Amount    float64 `json:"nav"`
-	Deposited float64 `json:"deposited"`
-	Profit    float64 `json:"profit"`
+type goal struct {
+	Data []struct {
+		Attributes struct {
+			Name      string    `json:"name"`
+			Nav       float64   `json:"nav"`
+			Deposited float64   `json:"deposited"`
+			Profit    float64   `json:"profit"`
+			CreatedAt time.Time `json:"created_at"`
+		} `json:"attributes"`
+	} `json:"data"`
 }
 
 func main() {
-	var (
-		requestUrl string = fmt.Sprintf("https://fintual.cl/api/goals?user_email=pascualsu%sgmail.com&user_token=%s", "%40", os.Getenv("FINTUAL_TOKEN"))
-		resObject  GoalData
-	)
+	u, _ := url.Parse(baseURL)
 
-	res, resData := GetReq(requestUrl)
+	if err := godotenv.Load(); err != nil {
+		log.Fatal(errors.New("Couldn't load any .env file"))
+	}
+
+	q := u.Query()
+	q.Add("user_email", os.Getenv("USER_EMAIL"))
+	q.Add("user_token", os.Getenv("USER_TOKEN"))
+	u.RawQuery = q.Encode()
+
+	res, err := http.Get(u.String())
+	if err != nil {
+		log.Fatal(err)
+	}
 	defer res.Body.Close()
 
-	err := json.Unmarshal(resData, &resObject)
-	if err != nil {
-		log.Fatal("Couldn't unmarshal json", err.Error())
-	}
+	body, _ := io.ReadAll(res.Body)
 
-	fmt.Println("----------------------------------------------------------")
-	fmt.Printf("%24s %10s %10s %10s\n", "GOAL NAME", "BALANCE", "DEPOSITED", "PROFIT")
-	fmt.Println("----------------------------------------------------------")
-	fmt.Printf("%24s %10.f %10.f %10.f\n", resObject.Metadata[0].Attribute.Name, resObject.Metadata[0].Attribute.Amount, resObject.Metadata[0].Attribute.Deposited, resObject.Metadata[0].Attribute.Profit)
-	fmt.Printf("%24s %10.f %10.f %10.f\n", resObject.Metadata[1].Attribute.Name, resObject.Metadata[1].Attribute.Amount, resObject.Metadata[1].Attribute.Deposited, resObject.Metadata[1].Attribute.Profit)
-	fmt.Printf("%24s %10.f %10.f %10.f\n", "TOTAL PROFIT", resObject.Metadata[0].Attribute.Amount+resObject.Metadata[1].Attribute.Amount, resObject.Metadata[0].Attribute.Deposited+resObject.Metadata[1].Attribute.Deposited, resObject.Metadata[0].Attribute.Profit+resObject.Metadata[1].Attribute.Profit)
-	fmt.Println("----------------------------------------------------------")
-}
+	var g goal
+	json.Unmarshal(body, &g)
 
-func GetReq(url string) (*http.Response, []byte) {
-	res, err := http.Get(url)
-	if err != nil {
-		log.Fatal("Error en la conexión", err.Error())
+	p := message.NewPrinter(language.Spanish)
+	fmt.Printf("\033[1m%22s %10s %10s %10s %8s\033[0m\n", "", "Deposited", "Balance", "Profit", "Months")
+	for _, v := range g.Data {
+		durationInHours := time.Since(v.Attributes.CreatedAt).Hours()
+		durationInMonths := durationInHours / (hoursPerDay * daysPerMonth)
+		p.Printf("%22s %10.f %10.f %10.f %8.1f\n", v.Attributes.Name, v.Attributes.Deposited, v.Attributes.Nav, v.Attributes.Profit, durationInMonths)
 	}
-
-	res.Header.Set("Accept", "application/json")
-	resData, err := io.ReadAll(res.Body)
-	if err != nil {
-		log.Fatal(err.Error())
-	}
-	return res, resData
 }
